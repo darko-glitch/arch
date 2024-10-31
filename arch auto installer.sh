@@ -39,7 +39,7 @@ echo -e "\nCreating Filesystems...\n"
 if [[ "$FS_CHOICE" == "1" ]]; then
     mkfs.ext4 "${ROOT}"
 elif [[ "$FS_CHOICE" == "2" ]]; then
-    mkfs.btrfs "${ROOT}"
+    mkfs.btrfs -f "${ROOT}"
 
     # Create btrfs subvolumes
     mount "${ROOT}" /mnt
@@ -69,6 +69,7 @@ else
 fi
 
 # Mount EFI partition
+mkfs.fat -F 32 "${EFI}"
 mkdir -p /mnt/boot/efi
 mount "${EFI}" /mnt/boot/efi
 
