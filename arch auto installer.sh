@@ -39,7 +39,7 @@ echo -e "\nCreating Filesystems...\n"
 if [[ "$FS_CHOICE" == "1" ]]; then
     mkfs.ext4 "${ROOT}"
 elif [[ "$FS_CHOICE" == "2" ]]; then
-    mkfs.btrfs -f "${ROOT}"
+    mkfs.btrfs "${ROOT}"
 
     # Create btrfs subvolumes
     mount "${ROOT}" /mnt
@@ -69,9 +69,8 @@ else
 fi
 
 # Mount EFI partition
-mkfs.fat -F 32 "${EFI}"
-mkdir -p /mnt/boot/efi
-mount "${EFI}" /mnt/boot/efi
+mkdir -p /mnt/efi
+mount "${EFI}" /mnt/efi
 
 echo -e "\nUpdating mirrorlist with reflector...\n"
 reflector --latest 10 --sort rate --save /etc/pacman.d/mirrorlist
@@ -85,10 +84,11 @@ pacstrap /mnt base base-devel linux linux-firmware linux-headers iwd dhcpcd nano
 genfstab -U /mnt >> /mnt/etc/fstab
 
 cat <<REALEND > /mnt/next.sh
+#!/bin/bash
 
 # Enable multilib repository
 echo -e "\nEnabling multilib repository...\n"
-cat << EOF >> /mnt/etc/pacman.conf
+cat << EOF >> /etc/pacman.conf
 
 [multilib]
 Include = /etc/pacman.d/mirrorlist
@@ -121,22 +121,19 @@ pacman -S grub ntfs-3g os-prober efibootmgr --noconfirm --needed
 grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB
 grub-mkconfig -o /boot/grub/grub.cfg
 
-# Video and audio drivers
+# Video driver selection
 echo "Select video driver:"
 echo "1. AMD"
 echo "2. Intel"
 echo "3. NVIDIA"
 read -p "Enter your choice (1, 2, or 3): " VIDEO_CHOICE
 
-if [[ "$VIDEO_CHOICE" == "1" ]]; then
-    pacman -S vulkan-amdgpu mesa xf86-video-amdgpu --noconfirm --needed
-elif [[ "$VIDEO_CHOICE" == "2" ]]; then
-    pacman -S xorg mesa xf86-video-intel --noconfirm --needed
-elif [[ "$VIDEO_CHOICE" == "3" ]]; then
-    pacman -S xorg mesa nvidia nvidia-utils nvidia-settings opencl-nvidia nvidia-prime --noconfirm --needed
-else
-    echo "Invalid video driver choice."
-fi
+case "\$VIDEO_CHOICE" in
+    1) pacman -S vulkan-amdgpu mesa xf86-video-amdgpu --noconfirm --needed ;;
+    2) pacman -S xorg mesa xf86-video-intel --noconfirm --needed ;;
+    3) pacman -S xorg mesa nvidia nvidia-utils nvidia-settings opencl-nvidia nvidia-prime --noconfirm --needed ;;
+    *) echo "Invalid video driver choice." ; exit 1 ;;
+esac
 
 # Audio driver selection
 echo "Select audio driver:"
@@ -144,16 +141,14 @@ echo "1. PipeWire"
 echo "2. PulseAudio"
 read -p "Enter your choice (1 or 2): " AUDIO_CHOICE
 
-if [[ "$AUDIO_CHOICE" == "1" ]]; then
-    pacman -S pipewire pipewire-alsa pipewire-pulse --noconfirm --needed
-    systemctl --user enable pipewire.socket pipewire-pulse.socket wireplumber.service
-    systemctl --user enable pipewire.service
-elif [[ "$AUDIO_CHOICE" == "2" ]]; then
-    pacman -S pulseaudio pulseaudio-alsa --noconfirm --needed
-    systemctl enable pulseaudio
-else
-    echo "Invalid audio driver choice."
-fi
+case "\$AUDIO_CHOICE" in
+    1) pacman -S pipewire pipewire-alsa pipewire-pulse --noconfirm --needed
+       systemctl --user enable pipewire.socket pipewire-pulse.socket wireplumber.service
+       systemctl --user enable pipewire.service ;;
+    2) pacman -S pulseaudio pulseaudio-alsa --noconfirm --needed
+       systemctl enable pulseaudio ;;
+    *) echo "Invalid audio driver choice." ; exit 1 ;;
+esac
 
 # Choose Desktop Environment
 echo "Select Desktop Environment:"
@@ -163,21 +158,15 @@ echo "3. XFCE"
 echo "4. BSPWM"
 read -p "Enter your choice (1, 2, 3, or 4): " DE_CHOICE
 
-# Desktop Environment Installation
-if [[ "$DE_CHOICE" == "1" ]]; then
-    pacman -S gnome-shell gnome-control-center gnome-calculator gnome-menus colord-gtk nautilus python-nautilus ffmpegthumbnailer gvfs-mtp file-roller xdg-desktop-portal-gnome gnome-tweaks gnome-terminal gnome-themes-extra gnome-color-manager gnome-backgrounds gnome-disk-utility gnome-screenshot gnome-shell-extensions evince loupe gnome-text-editor xdg-user-dirs-gtk --noconfirm --needed
-    pacman -S ttf-liberation ttf-fira-sans ttf-jetbrains-mono noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra --noconfirm --needed
-elif [[ "$DE_CHOICE" == "2" ]]; then
-    pacman -S hyprland hyprcursor hyprutils thunar xdg-desktop-portal-hyprland xdg-desktop-portal-gtk thunar-volman tumbler ffmpegthumbnailer file-roller thunar-archive-plugin aquamarine hypridle hyprlock pyprland aylurs-gtk-shell cliphist kvantum rofi-wayland imagemagick swaync swww wallust waybar wl-clipboard wlogout kitty hypridle hyprlock pyprland aylurs-gtk-shell cliphist curl grim gvfs gvfs-mtp imagemagick inxi jq kitty kvantum nano network-manager-applet pamixer pavucontrol pipewire-alsa playerctl polkit-gnome python-requests python-pyquery qt5ct qt6ct qt6-svg rofi-wayland slurp swappy swaync swww wallust waybar wget wl-clipboard wlogout xdg-user-dirs xdg-utils yad --noconfirm --needed
-    pacman -Rns dunst mako rofi wallust-git
-elif [[ "$DE_CHOICE" == "3" ]]; then
-    pacman -S xfce4 xfce4-goodies --noconfirm --needed
-elif [[ "$DE_CHOICE" == "4" ]]; then
-    pacman -S bspwm sxhkd polybar dmenu rofi nitrogen picom --noconfirm --needed
-else
-    echo "Invalid desktop environment choice."
-    exit 1
-fi
+case "\$DE_CHOICE" in
+    1) pacman -S gnome-shell gnome-control-center gnome-calculator gnome-menus colord-gtk nautilus python-nautilus ffmpegthumbnailer gvfs-mtp file-roller xdg-desktop-portal-gnome gnome-tweaks gnome-terminal gnome-themes-extra gnome-color-manager gnome-backgrounds gnome-disk-utility gnome-screenshot gnome-shell-extensions evince loupe gnome-text-editor xdg-user-dirs-gtk --noconfirm --needed
+       pacman -S ttf-liberation ttf-fira-sans ttf-jetbrains-mono noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra --noconfirm --needed ;;
+    2) pacman -S hyprland hyprcursor hyprutils thunar xdg-desktop-portal-hyprland xdg-desktop-portal-gtk thunar-volman tumbler ffmpegthumbnailer file-roller thunar-archive-plugin aquamarine hypridle hyprlock pyprland aylurs-gtk-shell cliphist kvantum rofi-wayland imagemagick swaync swww wallust waybar wl-clipboard wlogout kitty --noconfirm --needed
+       pacman -Rns dunst mako rofi wallust-git ;;
+    3) pacman -S xfce4 xfce4-goodies --noconfirm --needed ;;
+    4) pacman -S bspwm sxhkd polybar dmenu rofi nitrogen picom --noconfirm --needed ;;
+    *) echo "Invalid desktop environment choice." ; exit 1 ;;
+esac
 
 # Display Manager Selection
 echo "Select Display Manager:"
@@ -186,18 +175,15 @@ echo "2. LY"
 echo "3. SDDM"
 read -p "Enter your choice (1, 2, or 3): " DM_CHOICE
 
-if [[ "$DM_CHOICE" == "1" ]]; then
-    pacman -S gdm --noconfirm --needed
-    systemctl enable gdm
-elif [[ "$DM_CHOICE" == "2" ]]; then
-    pacman -S ly --noconfirm --needed
-    systemctl enable ly
-elif [[ "$DM_CHOICE" == "3" ]]; then
-    pacman -S sddm qt6-svg --noconfirm --needed
-    systemctl enable sddm
-else
-    echo "Invalid display manager choice. No display manager will be enabled."
-fi
+case "\$DM_CHOICE" in
+    1) pacman -S gdm --noconfirm --needed
+       systemctl enable gdm ;;
+    2) pacman -S ly --noconfirm --needed
+       systemctl enable ly ;;
+    3) pacman -S sddm qt6-svg --noconfirm --needed
+       systemctl enable sddm ;;
+    *) echo "Invalid display manager choice. No display manager will be enabled." ;;
+esac
 
 # Additional software installation
 pacman -S wget vlc neofetch switcheroo-control --noconfirm --needed
@@ -207,5 +193,6 @@ echo "-------------------------------------------------"
 echo "Install Complete, You can reboot now"
 echo "-------------------------------------------------"
 REALEND
+
 
 arch-chroot /mnt sh next.sh
