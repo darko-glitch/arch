@@ -97,6 +97,8 @@ EOF
 
 pacman -Sy
 
+sudo systemctl enable iwd dhcpcd
+
 # User creation and system configuration
 useradd -m -b /home -G wheel,storage,power,audio,video "$USER"
 usermod -c "$NAME" "$USER"
