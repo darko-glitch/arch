@@ -39,7 +39,7 @@ echo -e "\nCreating Filesystems...\n"
 if [[ "$FS_CHOICE" == "1" ]]; then
     mkfs.ext4 "${ROOT}"
 elif [[ "$FS_CHOICE" == "2" ]]; then
-    mkfs.btrfs "${ROOT}"
+    mkfs.btrfs -f "${ROOT}"
 
     # Create btrfs subvolumes
     mount "${ROOT}" /mnt
@@ -69,8 +69,9 @@ else
 fi
 
 # Mount EFI partition
-mkdir -p /mnt/efi
-mount "${EFI}" /mnt/efi
+mkfs.fat -F 32 "${EFI}"
+mkdir -p /mnt/boot/efi
+mount "${EFI}" /mnt/boot/efi
 
 echo -e "\nUpdating mirrorlist with reflector...\n"
 reflector --latest 10 --sort rate --save /etc/pacman.d/mirrorlist
