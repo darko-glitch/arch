@@ -164,8 +164,7 @@ read -p "Enter your choice (1, 2, 3, or 4): " DE_CHOICE
 case "\$DE_CHOICE" in
     1) pacman -S gnome-shell gnome-control-center gnome-calculator gnome-menus colord-gtk nautilus python-nautilus ffmpegthumbnailer gvfs-mtp file-roller xdg-desktop-portal-gnome gnome-tweaks gnome-terminal gnome-themes-extra gnome-color-manager gnome-backgrounds gnome-disk-utility gnome-screenshot gnome-shell-extensions evince loupe gnome-text-editor xdg-user-dirs-gtk --noconfirm --needed
        pacman -S ttf-liberation ttf-fira-sans ttf-jetbrains-mono noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra --noconfirm --needed ;;
-    2) pacman -S hyprland hyprcursor hyprutils thunar xdg-desktop-portal-hyprland xdg-desktop-portal-gtk thunar-volman tumbler ffmpegthumbnailer file-roller thunar-archive-plugin aquamarine hypridle hyprlock pyprland aylurs-gtk-shell cliphist kvantum rofi-wayland imagemagick swaync swww wallust waybar wl-clipboard wlogout kitty --noconfirm --needed
-       pacman -Rns dunst mako rofi wallust-git ;;
+    2) pacman -S hyprland  xdg-desktop-portal-hyprland dunst kitty dolphin wofi qt5-wayland qt6-wayland polkit-kde-agent grim --noconfirm --needed ;;
     3) pacman -S xfce4 xfce4-goodies --noconfirm --needed ;;
     4) pacman -S bspwm sxhkd polybar dmenu rofi nitrogen picom --noconfirm --needed ;;
     *) echo "Invalid desktop environment choice." ; exit 1 ;;
