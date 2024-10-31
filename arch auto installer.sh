@@ -95,6 +95,8 @@ cat << EOF >> /etc/pacman.conf
 Include = /etc/pacman.d/mirrorlist
 EOF
 
+pacman -Sy
+
 # User creation and system configuration
 useradd -m -b /home -G wheel,storage,power,audio,video "$USER"
 usermod -c "$NAME" "$USER"
