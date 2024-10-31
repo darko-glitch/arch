@@ -10,6 +10,7 @@ check_partition() {
     fi
 }
 
+# User input for partitions
 echo "Please enter EFI partition: (example /dev/sda1 or /dev/nvme0n1p1)"
 read EFI
 check_partition "$EFI"
@@ -26,6 +27,10 @@ read NAME
 
 echo "Please enter your Password"
 read -s PASSWORD  # Silent input for password
+
+echo "--------------------------------------"
+echo "--   Format and making partitions   --"
+echo "--------------------------------------"
 
 # Choose filesystem
 echo "Select filesystem type:"
@@ -73,20 +78,25 @@ mkfs.fat -F 32 "${EFI}"
 mkdir -p /mnt/boot/efi
 mount "${EFI}" /mnt/boot/efi
 
-echo -e "\nUpdating mirrorlist with reflector...\n"
+echo "--------------------------------------"
+echo "--         fatest mirror            --"
+echo "--------------------------------------"
+
 reflector --latest 10 --sort rate --save /etc/pacman.d/mirrorlist
 
 echo "--------------------------------------"
-echo "-- INSTALLING Base Arch Linux --"
+echo "--    INSTALLING Base Arch Linux    --"
 echo "--------------------------------------"
 pacstrap /mnt base base-devel linux linux-firmware linux-headers iwd dhcpcd nano bluez bluez-utils git --noconfirm --needed
 
 # fstab
 genfstab -U /mnt >> /mnt/etc/fstab
 
-cat <<REALEND > /mnt/next.sh
-#!/bin/bash
+echo "---------------------------------------------"
+echo "-- enable multilib and enable wifi and eth --"
+echo "---------------------------------------------"
 
+cat <<REALEND > /mnt/next.sh
 # Enable multilib repository
 echo -e "\nEnabling multilib repository...\n"
 cat << EOF >> /etc/pacman.conf
@@ -94,16 +104,22 @@ cat << EOF >> /etc/pacman.conf
 [multilib]
 Include = /etc/pacman.d/mirrorlist
 EOF
-
 pacman -Sy
+systemctl enable iwd dhcpcd bluetooth
 
-sudo systemctl enable iwd dhcpcd
+echo "---------------------------------------------"
+echo "-- adding user and give it sudo permission --"
+echo "---------------------------------------------"
 
 # User creation and system configuration
 useradd -m -b /home -G wheel,storage,power,audio,video "$USER"
 usermod -c "$NAME" "$USER"
 echo "$USER:$PASSWORD" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+
+echo "-------------------------------------------------"
+echo "        Setup Language to US and set locale      "
+echo "-------------------------------------------------"
 
 # Locale and timezone settings
 sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
@@ -121,10 +137,18 @@ cat <<EOF > /etc/hosts
 127.0.1.1 archlinux.localdomain archlinux
 EOF
 
+echo "--------------------------------------"
+echo "--       Bootloader Installation    --"
+echo "--------------------------------------"
+
 # Bootloader installation
 pacman -S grub ntfs-3g os-prober efibootmgr --noconfirm --needed
 grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB
 grub-mkconfig -o /boot/grub/grub.cfg
+
+echo "-------------------------------------------------"
+echo "                 Video Drivers                   "
+echo "-------------------------------------------------"
 
 # Video driver selection
 echo "Select video driver:"
@@ -133,12 +157,16 @@ echo "2. Intel"
 echo "3. NVIDIA"
 read -p "Enter your choice (1, 2, or 3): " VIDEO_CHOICE
 
-case "\$VIDEO_CHOICE" in
+case "$VIDEO_CHOICE" in
     1) pacman -S vulkan-amdgpu mesa xf86-video-amdgpu --noconfirm --needed ;;
     2) pacman -S xorg mesa xf86-video-intel --noconfirm --needed ;;
     3) pacman -S xorg mesa nvidia nvidia-utils nvidia-settings opencl-nvidia nvidia-prime --noconfirm --needed ;;
     *) echo "Invalid video driver choice." ; exit 1 ;;
 esac
+
+echo "-------------------------------------------------"
+echo "                 Audio Drivers                   "
+echo "-------------------------------------------------"
 
 # Audio driver selection
 echo "Select audio driver:"
@@ -146,7 +174,7 @@ echo "1. PipeWire"
 echo "2. PulseAudio"
 read -p "Enter your choice (1 or 2): " AUDIO_CHOICE
 
-case "\$AUDIO_CHOICE" in
+case "$AUDIO_CHOICE" in
     1) pacman -S pipewire pipewire-alsa pipewire-pulse --noconfirm --needed
        systemctl --user enable pipewire.socket pipewire-pulse.socket wireplumber.service
        systemctl --user enable pipewire.service ;;
@@ -155,48 +183,117 @@ case "\$AUDIO_CHOICE" in
     *) echo "Invalid audio driver choice." ; exit 1 ;;
 esac
 
+echo "-------------------------------------------------"
+echo "              Desktop Environment                "
+echo "-------------------------------------------------"
+
 # Choose Desktop Environment
 echo "Select Desktop Environment:"
 echo "1. GNOME"
 echo "2. Hyprland"
 echo "3. XFCE"
 echo "4. BSPWM"
-read -p "Enter your choice (1, 2, 3, or 4): " DE_CHOICE
+echo "5. i3"
+echo "6. KDE Plasma"
+echo "7. Cinnamon"
+read -p "Enter your choice (1-7): " DE_CHOICE
 
-case "\$DE_CHOICE" in
+case "$DE_CHOICE" in
     1) pacman -S gnome-shell gnome-control-center gnome-calculator gnome-menus colord-gtk nautilus python-nautilus ffmpegthumbnailer gvfs-mtp file-roller xdg-desktop-portal-gnome gnome-tweaks gnome-terminal gnome-themes-extra gnome-color-manager gnome-backgrounds gnome-disk-utility gnome-screenshot gnome-shell-extensions evince loupe gnome-text-editor xdg-user-dirs-gtk --noconfirm --needed
        pacman -S ttf-liberation ttf-fira-sans ttf-jetbrains-mono noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra --noconfirm --needed ;;
-    2) pacman -S hyprland  xdg-desktop-portal-hyprland dunst kitty dolphin wofi qt5-wayland qt6-wayland polkit-kde-agent grim --noconfirm --needed ;;
+    2) pacman -S hyprland xdg-desktop-portal-hyprland dunst kitty dolphin wofi qt5-wayland qt6-wayland polkit-kde-agent grim --noconfirm --needed ;;
     3) pacman -S xfce4 xfce4-goodies --noconfirm --needed ;;
     4) pacman -S bspwm sxhkd polybar dmenu rofi nitrogen picom --noconfirm --needed ;;
+    5) pacman -S i3 i3status i3lock --noconfirm --needed ;;
+    6) pacman -S plasma kde-applications --noconfirm --needed ;;
+    7) pacman -S cinnamon --noconfirm --needed ;;
     *) echo "Invalid desktop environment choice." ; exit 1 ;;
 esac
+
+echo "-------------------------------------------------"
+echo "                 Display Manager                 "
+echo "-------------------------------------------------"
 
 # Display Manager Selection
 echo "Select Display Manager:"
 echo "1. GDM"
 echo "2. LY"
 echo "3. SDDM"
-read -p "Enter your choice (1, 2, or 3): " DM_CHOICE
+echo "4. LightDM"
+echo "5. LightDM with Slick Greeter"
+read -p "Enter your choice (1-5): " DM_CHOICE
 
-case "\$DM_CHOICE" in
+case "$DM_CHOICE" in
     1) pacman -S gdm --noconfirm --needed
        systemctl enable gdm ;;
     2) pacman -S ly --noconfirm --needed
        systemctl enable ly ;;
     3) pacman -S sddm qt6-svg --noconfirm --needed
        systemctl enable sddm ;;
+    4) pacman -S lightdm lightdm-gtk-greeter --noconfirm --needed
+       systemctl enable lightdm ;;
+    5) pacman -S lightdm lightdm-slick-greeter --noconfirm --needed
+       systemctl enable lightdm ;;
     *) echo "Invalid display manager choice. No display manager will be enabled." ;;
 esac
 
+echo "-------------------------------------------------"
+echo "       Additional software installation          "
+echo "-------------------------------------------------"
+
 # Additional software installation
-pacman -S wget vlc neofetch switcheroo-control --noconfirm --needed
-systemctl enable switcheroo-control
+echo "Would you like to install some extra packages? (y/n)"
+read -p "Enter your choice: " EXTRA_PACKAGES_CHOICE
+
+if [[ "$EXTRA_PACKAGES_CHOICE" == "y" ]]; then
+    read -p "Please enter the packages you want to install (space-separated): " EXTRA_PACKAGES
+    pacman -S $EXTRA_PACKAGES --noconfirm --needed
+else
+    echo "Skipping extra package installation."
+fi
 
 echo "-------------------------------------------------"
-echo "Install Complete, You can reboot now"
+echo "                 Mount drive                     "
 echo "-------------------------------------------------"
-REALEND
 
+# List available disks
+echo "Available disks:"
+lsblk
 
-arch-chroot /mnt sh next.sh
+# Ask user if they want to mount any additional disks
+read -p "Do you want to mount any disk for data or games? (y/n): " MOUNT_DISK_CHOICE
+
+if [[ "$MOUNT_DISK_CHOICE" == "y" ]]; then
+    # Show UUIDs of available disks
+    echo "Available disk UUIDs:"
+    blkid
+
+    # Ask user for the UUID and label name
+    read -p "Please enter the UUID of the disk you want to mount: " DISK_UUID
+    read -p "Enter the desired mount point label name (e.g., data or games): " LABEL_NAME
+
+    # Create the mount directory
+    mkdir -p "/mnt/$LABEL_NAME"
+
+    # Add to /etc/fstab
+    echo "UUID=$DISK_UUID /mnt/$LABEL_NAME ext4 defaults,nosuid,nodev,nofail,x-gvfs-show,x-gvfs-name=$LABEL_NAME 0 0" >> /etc/fstab
+
+    echo "Disk mounted successfully! Remember to mount it with 'mount -a' or reboot."
+else
+    echo "Skipping disk mounting."
+fi
+
+echo "-------------------------------------------------"
+echo "              Clean up and unmount               "
+echo "-------------------------------------------------"
+
+# Clean up and unmount
+echo "Unmounting partitions..."
+umount -R /mnt
+
+echo "-------------------------------------------------"
+echo "      Install Complete, You can reboot now       "
+echo "-------------------------------------------------"
+
+# Execute the next steps in the new environment
+arch-chroot /mnt sh /next.sh
