@@ -113,7 +113,7 @@ REALEND
 pacman -Sy
 
 # Enable necessary services
-systemctl enable iwd dhcpcd bluetooth
+systemctl enable iwd dhcpcd
 
 echo "---------------------------------------------"
 echo "-- adding user and give it sudo permission --"
