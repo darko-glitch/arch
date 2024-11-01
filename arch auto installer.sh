@@ -152,8 +152,16 @@ echo "--------------------------------------"
 # Bootloader installation
 mkdir -p /boot/efi
 pacman -S grub ntfs-3g os-prober efibootmgr --noconfirm --needed
-grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB
-grub-mkconfig -o /boot/grub/grub.cfg
+
+# Ensure /boot/efi is mounted before running grub-install
+if mount | grep -q '/boot/efi'; then
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB || { echo "GRUB installation failed"; exit 1; }
+    grub-mkconfig -o /boot/grub/grub.cfg || { echo "GRUB configuration failed"; exit 1; }
+else
+    echo "/boot/efi is not mounted. Please mount it first."
+    exit 1
+fi
+
 
 echo "-------------------------------------------------"
 echo "                 Video Drivers                   "
