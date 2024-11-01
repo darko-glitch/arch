@@ -87,7 +87,7 @@ reflector --latest 10 --sort rate --save /etc/pacman.d/mirrorlist
 echo "--------------------------------------"
 echo "--    INSTALLING Base Arch Linux    --"
 echo "--------------------------------------"
-pacstrap /mnt base base-devel linux linux-firmware linux-headers iwd dhcpcd nano bluez bluez-utils git --noconfirm --needed
+pacstrap /mnt base base-devel linux linux-firmware linux-headers iwd dhcpcd nano grub ntfs-3g os-prober efibootmgr bluez bluez-utils git --noconfirm --needed
 
 # fstab
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -151,7 +151,6 @@ echo "--------------------------------------"
 
 # Bootloader installation
 mkdir -p /boot/efi
-pacman -S grub ntfs-3g os-prober efibootmgr --noconfirm --needed
 
 # Ensure /boot/efi is mounted before running grub-install
 if mount | grep -q '/boot/efi'; then
