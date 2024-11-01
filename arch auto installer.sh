@@ -96,15 +96,23 @@ echo "---------------------------------------------"
 echo "-- enable multilib and enable wifi and eth --"
 echo "---------------------------------------------"
 
-cat <<REALEND > /mnt/next.sh
+cat << 'REALEND' > /mnt/next.sh
+#!/bin/bash
+set -e  # Exit immediately if a command exits with a non-zero status
+
 # Enable multilib repository
 echo -e "\nEnabling multilib repository...\n"
-cat << EOF >> /etc/pacman.conf
+{
+    echo
+    echo "[multilib]"
+    echo "Include = /etc/pacman.d/mirrorlist"
+} | tee -a /etc/pacman.conf > /dev/null
 
-[multilib]
-Include = /etc/pacman.d/mirrorlist
-EOF
+REALEND
+# Update package database
 pacman -Sy
+
+# Enable necessary services
 systemctl enable iwd dhcpcd bluetooth
 
 echo "---------------------------------------------"
