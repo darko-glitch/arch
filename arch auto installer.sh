@@ -54,26 +54,11 @@ echo "1) wpa_supplicant"
 echo "2) iwd"
 read -p "Enter the number of your choice: " NETWORK_MANAGER_CHOICE
 
-# Install selected network manager
-if [ "$NETWORK_MANAGER_CHOICE" -eq 1 ]; then
-  pacman -S wpa_supplicant --noconfirm --needed
-  systemctl enable wpa_supplicant
-elif [ "$NETWORK_MANAGER_CHOICE" -eq 2 ]; then
-  pacman -S iwd --noconfirm --needed
-  systemctl enable iwd
-else
-  echo "Invalid choice. No network manager will be installed."
-fi
-
 # Bluetooth Activation
-read -p "Do you want to activate Bluetooth? (y/n): " BLUETOOTH_CHOICE
-if [[ "$BLUETOOTH_CHOICE" =~ ^[Yy]$ ]]; then
-  pacman -S bluez bluez-utils --noconfirm --needed
-  systemctl enable bluetooth
-  echo "Bluetooth has been activated."
-else
-  echo "Bluetooth will not be activated."
-fi
+echo "Do you want to activate Bluetooth?"
+echo "1) Yes"
+echo "2) No"
+read -p "Enter your choice: " BLUETOOTH_CHOICE
 
 # Desktop Environment Selection
 echo "Select a desktop environment or window manager to install:"
@@ -166,11 +151,15 @@ case $BOOTLOADER_CHOICE in
     ;;
   2)
     # Systemd-boot
-    bootctl install
+    bootctl --path=/boot/efi install
+    # Create loader configuration
     cat <<EOF > /boot/loader/loader.conf
-default arch
 timeout 3
+console-mode max
+default arch
+editor no
 EOF
+    # Create boot entry for Arch Linux
     cat <<EOF > /boot/loader/entries/arch.conf
 title Arch Linux
 linux /vmlinuz-linux
@@ -287,6 +276,36 @@ case $DM_CHOICE in
     ;;
 esac
 
+case $NETWORK_MANAGER_CHOICE in
+  1)
+    pacman -S wpa_supplicant --noconfirm --needed
+    systemctl enable wpa_supplicant
+    echo "wpa_supplicant has been installed and enabled."
+    ;;
+  2)
+    pacman -S iwd --noconfirm --needed
+    systemctl enable iwd
+    echo "iwd has been installed and enabled."
+    ;;
+  *)
+    echo "Invalid choice. No network manager will be installed."
+    ;;
+esac
+
+case $BLUETOOTH_CHOICE in
+  1)
+    pacman -S bluez bluez-utils --noconfirm --needed
+    systemctl enable bluetooth
+    echo "Bluetooth has been activated."
+    ;;
+  2)
+    echo "Bluetooth will not be activated."
+    ;;
+  *)
+    echo "Invalid choice. Bluetooth will not be activated."
+    ;;
+esac
+
 # Install Selected Desktop Environment or Window Manager
 echo "Installing Selected Desktop Environment or Window Manager..."
 
@@ -317,21 +336,29 @@ case $DE_CHOICE in
     ;;
 esac
 
+# Additional Software Installation
 echo "-------------------------------------------------"
-echo "       Additional Software Installation          "
+echo "              Additional Software Installation   "
 echo "-------------------------------------------------"
-
-# Additional software installation
-echo "Would you like to install some extra packages? (y/n)"
+echo "Would you like to install some extra packages?"
 echo "Examples: firefox, vlc, libreoffice, mpv, code, vim, nano, htop, neofetch"
+echo "1) Yes"
+echo "2) No"
 read -p "Enter your choice: " EXTRA_PACKAGES_CHOICE
 
-if [[ "$EXTRA_PACKAGES_CHOICE" == "y" ]]; then
+case $EXTRA_PACKAGES_CHOICE in
+  1)
     read -p "Please enter the packages you want to install (space-separated): " EXTRA_PACKAGES
     pacman -S $EXTRA_PACKAGES --noconfirm --needed
-else
+    echo "Extra packages have been installed."
+    ;;
+  2)
     echo "Skipping extra package installation."
-fi
+    ;;
+  *)
+    echo "Invalid choice. Skipping extra package installation."
+    ;;
+esac
 
 echo "-------------------------------------------------"
 echo "                 Mount drive                     "
