@@ -38,7 +38,7 @@ mount -o compress=zstd,subvol=@tmp "${ROOT}" /mnt/tmp
 mount -o compress=zstd,subvol=@snapshots "${ROOT}" /mnt/.snapshots
 
 # Mount EFI partition
-mount --mkdir "$EFI" /mnt/boot/efi
+mount --mkdir "$EFI" /mnt/boot
 
 echo "--------------------------------------"
 echo "-- INSTALLING Base Arch Linux --"
@@ -146,12 +146,13 @@ case $BOOTLOADER_CHOICE in
   1)
     # GRUB
     pacman -S grub efibootmgr --noconfirm --needed
-    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id="Arch Linux"
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Arch Linux"
     grub-mkconfig -o /boot/grub/grub.cfg
     ;;
   2)
     # Systemd-boot
-    bootctl --path=/boot/efi install
+    bootctl --path=/boot install || { echo "Failed to install systemd-boot"; exit 1; }
+    mkdir -p /boot/loader/entries
     # Create loader configuration
     cat <<EOF > /boot/loader/loader.conf
 timeout 3
@@ -204,7 +205,7 @@ EOF
   *)
     echo "Invalid choice. Defaulting to GRUB."
     pacman -S grub efibootmgr --noconfirm --needed
-    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id="Arch Linux"
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Arch Linux"
     grub-mkconfig -o /boot/grub/grub.cfg
     ;;
 esac
@@ -278,12 +279,12 @@ esac
 
 case $NETWORK_MANAGER_CHOICE in
   1)
-    pacman -S wpa_supplicant --noconfirm --needed
+    pacman -S wpa_supplicant wireless_tools --noconfirm --needed
     systemctl enable wpa_supplicant
     echo "wpa_supplicant has been installed and enabled."
     ;;
   2)
-    pacman -S iwd --noconfirm --needed
+    pacman -S iwd dhcpcd --noconfirm --needed
     systemctl enable iwd
     echo "iwd has been installed and enabled."
     ;;
