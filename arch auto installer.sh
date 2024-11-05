@@ -18,7 +18,9 @@ read PASSWORD
 
 # Format root as Btrfs
 echo -e "\nCreating Btrfs Filesystem on ROOT...\n"
+
 mkfs.btrfs -f "${ROOT}"
+mkfs.vfat "${EFI}"
 
 # Mount target with subvolumes
 mount "${ROOT}" /mnt
@@ -31,22 +33,26 @@ umount /mnt
 
 # Remount with Btrfs subvolumes
 mount -o compress=zstd,subvol=@ "${ROOT}" /mnt
-mkdir -p /mnt/{home,var,tmp,.snapshots}
+mkdir -p /mnt/{home,var,tmp,.snapshots,boot}
 mount -o compress=zstd,subvol=@home "${ROOT}" /mnt/home
 mount -o compress=zstd,subvol=@var "${ROOT}" /mnt/var
 mount -o compress=zstd,subvol=@tmp "${ROOT}" /mnt/tmp
 mount -o compress=zstd,subvol=@snapshots "${ROOT}" /mnt/.snapshots
 
 # Mount EFI partition
-mount --mkdir "$EFI" /mnt/boot
+mount "$EFI" /mnt/boot
 
 echo "--------------------------------------"
 echo "-- INSTALLING Base Arch Linux --"
 echo "--------------------------------------"
-pacstrap /mnt base base-devel linux linux-firmware linux-headers git --noconfirm --needed
+pacstrap /mnt base base-devel linux linux-firmware linux-headers git nano --noconfirm --needed
 
 # Generate fstab
 genfstab -U /mnt >> /mnt/etc/fstab
+
+echo "-------------------------------------------------"
+echo "             Network Manager Setup               "
+echo "-------------------------------------------------"
 
 # Network Manager Setup
 echo "Select a network manager to install:"
@@ -54,11 +60,19 @@ echo "1) wpa_supplicant"
 echo "2) iwd"
 read -p "Enter the number of your choice: " NETWORK_MANAGER_CHOICE
 
+echo "-------------------------------------------------"
+echo "             Bluetooth Activation                "
+echo "-------------------------------------------------"
+
 # Bluetooth Activation
 echo "Do you want to activate Bluetooth?"
 echo "1) Yes"
 echo "2) No"
 read -p "Enter your choice: " BLUETOOTH_CHOICE
+
+echo "-------------------------------------------------"
+echo "             Desktop Environment                 "
+echo "-------------------------------------------------"
 
 # Desktop Environment Selection
 echo "Select a desktop environment or window manager to install:"
@@ -70,6 +84,11 @@ echo "5) KDE Plasma"
 echo "6) Cinnamon"
 echo "7) i3"
 read -p "Enter the number of your choice: " DE_CHOICE
+
+echo "-------------------------------------------------"
+echo "                   Bootloader                    "
+echo "-------------------------------------------------"
+
 
 # Bootloader Selection
 echo "Select a bootloader to install:"
@@ -84,11 +103,19 @@ echo "8) GRUB Legacy"
 echo "9) LILO"
 read -p "Enter the number of your choice: " BOOTLOADER_CHOICE
 
+echo "-------------------------------------------------"
+echo "                 Audio System                    "
+echo "-------------------------------------------------"
+
 # Audio System Selection
 echo "Select an audio system to install:"
 echo "1) PipeWire"
 echo "2) PulseAudio"
 read -p "Enter the number of your choice: " AUDIO_CHOICE
+
+echo "-------------------------------------------------"
+echo "                     CPU                         "
+echo "-------------------------------------------------"
 
 # CPU Type Selection
 echo "What type of CPU do you have?"
@@ -96,12 +123,21 @@ echo "1) AMD"
 echo "2) Intel"
 read -p "Enter the number of your choice: " CPU_CHOICE
 
+echo "-------------------------------------------------"
+echo "                   GPU Driver                    "
+echo "-------------------------------------------------"
+
 # GPU Driver Selection
 echo "Select a GPU driver to install:"
 echo "1) AMD"
 echo "2) Intel"
 echo "3) NVIDIA"
 read -p "Enter the number of your choice: " GPU_CHOICE
+
+echo "-------------------------------------------------"
+echo "                Display Manager                  "
+echo "-------------------------------------------------"
+
 
 # Display Manager Selection
 echo "Select a display manager to install:"
@@ -213,10 +249,10 @@ esac
 # Audio System Installation
 echo "Installing Selected Audio System..."
 if [ "$AUDIO_CHOICE" -eq 1 ]; then
-  pacman -S pipewire pipewire-alsa pipewire-pulse --noconfirm --needed
+  pacman -S pipewire pipewire-alsa pipewire-pulse pavucontrol --noconfirm --needed
   systemctl --user enable pipewire pipewire-pulse
 elif [ "$AUDIO_CHOICE" -eq 2 ]; then
-  pacman -S pulseaudio pulseaudio-alsa --noconfirm --needed
+  pacman -S pulseaudio pulseaudio-alsa pavucontrol --noconfirm --needed
   systemctl --user enable pulseaudio
 else
   echo "Invalid audio choice. Defaulting to PipeWire."
