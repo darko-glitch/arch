@@ -386,7 +386,7 @@ read -p "Enter your choice: " EXTRA_PACKAGES_CHOICE
 case $EXTRA_PACKAGES_CHOICE in
   1)
     read -p "Please enter the packages you want to install (space-separated): " EXTRA_PACKAGES
-    pacman -S $EXTRA_PACKAGES --noconfirm --needed
+    pacman -S --noconfirm --needed $EXTRA_PACKAGES
     echo "Extra packages have been installed."
     ;;
   2)
