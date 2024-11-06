@@ -377,25 +377,25 @@ esac
 echo "-------------------------------------------------"
 echo "              Additional Software Installation   "
 echo "-------------------------------------------------"
-echo "Would you like to install some extra packages?"
-echo "Examples: firefox, vlc, libreoffice, mpv, code, vim, nano, htop, neofetch"
-echo "1) Yes"
-echo "2) No"
-read -p "Enter your choice: " EXTRA_PACKAGES_CHOICE
+# Ask the user if they want to install extra packages
+echo "Do you want to install extra packages? (y/n)"
+read answer
 
-case $EXTRA_PACKAGES_CHOICE in
-  1)
-    read -p "Please enter the packages you want to install (space-separated): " EXTRA_PACKAGES
-    pacman -S --noconfirm --needed $EXTRA_PACKAGES
-    echo "Extra packages have been installed."
-    ;;
-  2)
-    echo "Skipping extra package installation."
-    ;;
-  *)
-    echo "Invalid choice. Skipping extra package installation."
-    ;;
-esac
+# Check if the user responded with "y" or "yes"
+if [[ "$answer" == "y" || "$answer" == "yes" ]]; then
+    echo "Please enter the package names you want to install (separate by space):"
+    read packages
+
+    # Install the packages using pacman
+    echo "Installing packages: $packages"
+    sudo pacman -S --noconfirm $packages
+
+    # Check if the installation was successful
+    if [[ $? -eq 0 ]]; then
+        echo "Packages installed successfully!"
+    else
+        echo "Error installing packages."
+    fi
 
 echo "-------------------------------------------------"
 echo "                 Mount drive                     "
