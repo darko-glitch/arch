@@ -4,11 +4,36 @@
 LOG_FILE="/var/log/arch_install.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-# User Inputs
-echo "Please enter EFI partition (e.g., /dev/sda1 or /dev/nvme0n1p1):"
-read EFI
-echo "Please enter Root (/) partition (e.g., /dev/sda3):"
-read ROOT
+# Disk Type Selection
+echo "Please select your disk type:"
+echo "1) SATA (e.g., /dev/sda)"
+echo "2) NVMe (e.g., /dev/nvme0n1)"
+read -p "Enter the number of your choice: " DISK_TYPE
+
+if [[ "$DISK_TYPE" -eq 1 ]]; then
+    echo "Please enter your SATA disk partition for EFI (e.g., /dev/sda1):"
+    read EFI
+    echo "Please enter your SATA disk partition for Root (e.g., /dev/sda3):"
+    read ROOT
+elif [[ "$DISK_TYPE" -eq 2 ]]; then
+    echo "Please specify the NVMe device number (e.g., enter '0' for /dev/nvme0):"
+    read NVME_NUM
+    echo "Please specify the partition number (e.g., '1' for /dev/nvme0n1p1):"
+    read PART_NUM
+    EFI="/dev/nvme${NVME_NUM}n1p${PART_NUM}"
+    ROOT="/dev/nvme${NVME_NUM}n1p${PART_NUM}"
+else
+    echo "Invalid choice. Exiting."
+    exit 1
+fi
+
+# Filesystem Selection
+echo "Please select the filesystem for the root partition:"
+echo "1) ext4"
+echo "2) btrfs"
+read -p "Enter the number of your choice: " FS_TYPE
+
+# Continue with User Inputs
 echo "Please enter your Username:"
 read USER
 echo "Please enter your Full Name:"
@@ -16,28 +41,43 @@ read NAME
 echo "Please enter your Password:"
 read PASSWORD
 
-# Format root as Btrfs
-echo -e "\nCreating Btrfs Filesystem on ROOT...\n"
+# Format root partition
+if [[ "$FS_TYPE" -eq 1 ]]; then
+    echo -e "\nFormatting ${ROOT} as ext4...\n"
+    mkfs.ext4 -F "${ROOT}"
+elif [[ "$FS_TYPE" -eq 2 ]]; then
+    echo -e "\nFormatting ${ROOT} as btrfs...\n"
+    mkfs.btrfs -f "${ROOT}"
+else
+    echo "Invalid filesystem choice. Exiting."
+    exit 1
+fi
 
-mkfs.btrfs -f "${ROOT}"
+# Format EFI partition as FAT32
 mkfs.vfat "${EFI}"
 
-# Mount target with subvolumes
+# Mount target with subvolumes if btrfs
 mount "${ROOT}" /mnt
-btrfs subvolume create /mnt/@
-btrfs subvolume create /mnt/@home
-btrfs subvolume create /mnt/@var
-btrfs subvolume create /mnt/@tmp
-btrfs subvolume create /mnt/@snapshots
-umount /mnt
-
-# Remount with Btrfs subvolumes
-mount -o compress=zstd,subvol=@ "${ROOT}" /mnt
-mkdir -p /mnt/{home,var,tmp,.snapshots,boot}
-mount -o compress=zstd,subvol=@home "${ROOT}" /mnt/home
-mount -o compress=zstd,subvol=@var "${ROOT}" /mnt/var
-mount -o compress=zstd,subvol=@tmp "${ROOT}" /mnt/tmp
-mount -o compress=zstd,subvol=@snapshots "${ROOT}" /mnt/.snapshots
+if [[ "$FS_TYPE" -eq 2 ]]; then
+    echo -e "\nCreating Btrfs subvolumes on ${ROOT}...\n"
+    btrfs subvolume create /mnt/@
+    btrfs subvolume create /mnt/@home
+    btrfs subvolume create /mnt/@var
+    btrfs subvolume create /mnt/@tmp
+    btrfs subvolume create /mnt/@snapshots
+    umount /mnt
+    
+    # Remount with Btrfs subvolumes
+    mount -o compress=zstd,subvol=@ "${ROOT}" /mnt
+    mkdir -p /mnt/{home,var,tmp,.snapshots,boot}
+    mount -o compress=zstd,subvol=@home "${ROOT}" /mnt/home
+    mount -o compress=zstd,subvol=@var "${ROOT}" /mnt/var
+    mount -o compress=zstd,subvol=@tmp "${ROOT}" /mnt/tmp
+    mount -o compress=zstd,subvol=@snapshots "${ROOT}" /mnt/.snapshots
+else
+    # For ext4, just mount as is
+    mkdir -p /mnt/boot
+fi
 
 # Mount EFI partition
 mount "$EFI" /mnt/boot
@@ -373,10 +413,10 @@ case $DE_CHOICE in
     ;;
 esac
 
-# Additional Software Installation
 echo "-------------------------------------------------"
 echo "              Additional Software Installation   "
 echo "-------------------------------------------------"
+
 # Ask the user if they want to install extra packages
 echo "Do you want to install extra packages? (y/n)"
 read answer
@@ -386,20 +426,58 @@ if [[ "$answer" == "y" || "$answer" == "yes" ]]; then
     echo "Please enter the package names you want to install (separate by space):"
     read packages
 
+    # Combine predefined and user-provided packages
+    install_packages="zsh wget gnome-browser-connector gnome-shell nautilus gnome-terminal gnome-system-monitor gnome-disk-utility gnome-shell gnome-shell-extensions pacman-contrib git ttf-ubuntu-font-family p7zip unrar tar ufw $packages"
+
     # Install the packages using pacman
-    echo "Installing packages: $packages"
-    sudo pacman -S --noconfirm $packages
+    echo "Installing packages: $install_packages"
+    sudo pacman -S --noconfirm $install_packages
 
     # Check if the installation was successful
     if [[ $? -eq 0 ]]; then
         echo "Packages installed successfully!"
     else
         echo "Error installing packages."
+        exit 1
     fi
+fi
 
+# Ask the user if they want to enable any services
+echo "Do you want to enable and start any services? (y/n)"
+read enable_services
+
+if [[ "$enable_services" == "y" || "$enable_services" == "yes" ]]; then
+    # List of services to potentially enable
+    services=("ufw" "NetworkManager" "sshd" "bluetooth")
+
+    for service in "${services[@]}"; do
+        # Ask user for each service if they want to enable it
+        echo "Do you want to enable and start $service? (y/n)"
+        read enable
+
+        if [[ "$enable" == "y" || "$enable" == "yes" ]]; then
+            # Enable and start the service using systemctl
+            echo "Enabling and starting $service..."
+            sudo systemctl enable --now $service
+
+            # Check if the service was successfully enabled and started
+            if [[ $? -eq 0 ]]; then
+                echo "$service activated successfully!"
+            else
+                echo "Error activating $service."
+            fi
+        fi
+    done
+fi
+
+# Add your Mount drive section here
 echo "-------------------------------------------------"
-echo "                 Mount drive                     "
+echo "                 Mount Drive                     "
 echo "-------------------------------------------------"
+# Example: Prompt the user for mounting a drive (optional)
+# echo "Do you want to mount a drive? (y/n)"
+# read mount_answer
+# Add your mounting logic here if needed.
 
 
 # Final messages
