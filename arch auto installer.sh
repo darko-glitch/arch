@@ -286,6 +286,10 @@ EOF
     ;;
 esac
 
+###########################
+sudo pacman -S --noconfirm --needed zsh wget gnome-browser-connector gnome-shell nautilus gnome-terminal gnome-system-monitor gnome-disk-utility gnome-shell gnome-shell-extensions pacman-contrib git ttf-ubuntu-font-family p7zip unrar tar ufw
+#######################
+
 # Audio System Installation
 echo "Installing Selected Audio System..."
 if [ "$AUDIO_CHOICE" -eq 1 ]; then
