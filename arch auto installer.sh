@@ -321,7 +321,7 @@ case $NETWORK_MANAGER_CHOICE in
     ;;
   2)
     pacman -S iwd dhcpcd --noconfirm --needed
-    systemctl enable iwd
+    systemctl enable iwd dhcpcd
     echo "iwd has been installed and enabled."
     ;;
   *)
