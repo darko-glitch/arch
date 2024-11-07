@@ -18,19 +18,21 @@ if [[ "$DISK_TYPE" -eq 1 ]]; then
 elif [[ "$DISK_TYPE" -eq 2 ]]; then
     echo "Please specify the NVMe device number (e.g., enter '0' for /dev/nvme0):"
     read NVME_NUM
-    echo "Please specify the partition number (e.g., '1' for /dev/nvme0n1p1):"
-    read PART_NUM
-    EFI="/dev/nvme${NVME_NUM}n1p${PART_NUM}"
-    ROOT="/dev/nvme${NVME_NUM}n1p${PART_NUM}"
+    echo "Please specify the partition number for EFI (e.g., '1' for /dev/nvme0n1p1):"
+    read EFI_PART_NUM
+    echo "Please specify the partition number for Root (e.g., '2' for /dev/nvme0n1p2):"
+    read ROOT_PART_NUM
+    EFI="/dev/nvme${NVME_NUM}n1p${EFI_PART_NUM}"
+    ROOT="/dev/nvme${NVME_NUM}n1p${ROOT_PART_NUM}"
 else
     echo "Invalid choice. Exiting."
     exit 1
 fi
 
-# Filesystem Selection
-echo "Please select the filesystem for the root partition:"
-echo "1) ext4"
-echo "2) btrfs"
+# File System Selection
+echo "Please select the filesystem type for the root partition:"
+echo "1) Btrfs"
+echo "2) ext4"
 read -p "Enter the number of your choice: " FS_TYPE
 
 # Continue with User Inputs
@@ -39,34 +41,23 @@ read USER
 echo "Please enter your Full Name:"
 read NAME
 echo "Please enter your Password:"
-read PASSWORD
+read -s PASSWORD
 
-# Format root partition
+# Format partitions based on selected filesystem
 if [[ "$FS_TYPE" -eq 1 ]]; then
-    echo -e "\nFormatting ${ROOT} as ext4...\n"
-    mkfs.ext4 -F "${ROOT}"
-elif [[ "$FS_TYPE" -eq 2 ]]; then
-    echo -e "\nFormatting ${ROOT} as btrfs...\n"
+    echo -e "\nCreating Btrfs Filesystem on ROOT...\n"
     mkfs.btrfs -f "${ROOT}"
-else
-    echo "Invalid filesystem choice. Exiting."
-    exit 1
-fi
-
-# Format EFI partition as FAT32
-mkfs.vfat "${EFI}"
-
-# Mount target with subvolumes if btrfs
-mount "${ROOT}" /mnt
-if [[ "$FS_TYPE" -eq 2 ]]; then
-    echo -e "\nCreating Btrfs subvolumes on ${ROOT}...\n"
+    mkfs.vfat "${EFI}"
+    
+    # Mount target with subvolumes
+    mount "${ROOT}" /mnt
     btrfs subvolume create /mnt/@
     btrfs subvolume create /mnt/@home
     btrfs subvolume create /mnt/@var
     btrfs subvolume create /mnt/@tmp
     btrfs subvolume create /mnt/@snapshots
     umount /mnt
-    
+
     # Remount with Btrfs subvolumes
     mount -o compress=zstd,subvol=@ "${ROOT}" /mnt
     mkdir -p /mnt/{home,var,tmp,.snapshots,boot}
@@ -74,13 +65,69 @@ if [[ "$FS_TYPE" -eq 2 ]]; then
     mount -o compress=zstd,subvol=@var "${ROOT}" /mnt/var
     mount -o compress=zstd,subvol=@tmp "${ROOT}" /mnt/tmp
     mount -o compress=zstd,subvol=@snapshots "${ROOT}" /mnt/.snapshots
-else
-    # For ext4, just mount as is
+elif [[ "$FS_TYPE" -eq 2 ]]; then
+    echo -e "\nCreating ext4 Filesystem on ROOT...\n"
+    mkfs.ext4 "${ROOT}"
+    mkfs.vfat "${EFI}"
+
+    # Mount partitions
+    mount "${ROOT}" /mnt
     mkdir -p /mnt/boot
+else
+    echo "Invalid filesystem choice. Exiting."
+    exit 1
 fi
 
 # Mount EFI partition
 mount "$EFI" /mnt/boot
+
+echo "--------------------------------------"
+echo "-- INSTALLING Base Arch Linux --"
+echo "--------------------------------------"
+pacstrap /mnt base base-devel linux linux-firmware linux-headers git nano --noconfirm --needed
+
+# Generate fstab
+genfstab -U /mnt >> /mnt/etc/fstab
+
+# Create post-install script
+cat <<REALEND > /mnt/next.sh
+#!/bin/bash
+
+# User Setup
+useradd -m $USER
+usermod -c "${NAME}" $USER
+usermod -aG wheel,storage,power,audio,video $USER
+echo "$USER:$PASSWORD" | chpasswd
+sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+
+# Locale and Time Settings
+echo "Setting up Locale and Timezone..."
+sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+locale-gen
+echo "LANG=en_US.UTF-8" > /etc/locale.conf
+ln -sf /usr/share/zoneinfo/Asia/Kathmandu /etc/localtime
+hwclock --systohc
+
+# Hostname Configuration
+echo "archlinux" > /etc/hostname
+cat <<EOF > /etc/hosts
+127.0.0.1	localhost
+::1			localhost
+127.0.1.1	archlinux.localdomain	archlinux
+EOF
+
+# Bootloader Installation
+pacman -S grub efibootmgr --noconfirm --needed
+grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Arch Linux"
+grub-mkconfig -o /boot/grub/grub.cfg
+
+# Final messages
+echo "Installation Complete! You can reboot now."
+REALEND
+
+# Run the next.sh script in the chroot environment
+arch-chroot /mnt sh /next.sh
+
 
 echo "--------------------------------------"
 echo "-- INSTALLING Base Arch Linux --"
