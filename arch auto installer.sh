@@ -118,10 +118,11 @@ echo "Select a desktop environment or window manager to install:"
 echo "1) GNOME"
 echo "2) Hyprland"
 echo "3) XFCE"
-echo "4) BSPWM"
-echo "5) KDE Plasma"
-echo "6) Cinnamon"
-echo "7) i3"
+echo "4) No Desktop Environment (for a minimal setup)"
+echo "5) BSPWM"
+echo "6) KDE Plasma"
+echo "7) Cinnamon"
+echo "8) i3"
 read -p "Enter the number of your choice: " DE_CHOICE
 
 echo "-------------------------------------------------"
@@ -396,22 +397,25 @@ case $DE_CHOICE in
     pacman -S xfce4 xfce4-goodies --noconfirm --needed
     ;;
   4)
-    pacman -S bspwm sxhkd --noconfirm --needed
+    echo "No Desktop Environment selected. Proceeding with minimal setup..."
+    # You can add any additional setup here for a minimal install if needed
     ;;
   5)
-    pacman -S plasma kde-applications --noconfirm --needed
+    pacman -S bspwm sxhkd --noconfirm --needed
     ;;
   6)
-    pacman -S cinnamon --noconfirm --needed
+    pacman -S plasma kde-applications --noconfirm --needed
     ;;
   7)
+    pacman -S cinnamon --noconfirm --needed
+    ;;
+  8)
     pacman -S i3 i3status dmenu --noconfirm --needed
     ;;
   *)
     echo "Invalid choice. No Desktop Environment or Window Manager will be installed."
     ;;
 esac
-
 
 # Final messages
 echo "-------------------------------------------------"
