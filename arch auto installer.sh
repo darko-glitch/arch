@@ -84,55 +84,7 @@ mount "$EFI" /mnt/boot
 echo "--------------------------------------"
 echo "-- INSTALLING Base Arch Linux --"
 echo "--------------------------------------"
-pacstrap /mnt base base-devel linux linux-firmware linux-headers git nano --noconfirm --needed
-
-# Generate fstab
-genfstab -U /mnt >> /mnt/etc/fstab
-
-# Create post-install script
-cat <<REALEND > /mnt/next.sh
-#!/bin/bash
-
-# User Setup
-useradd -m $USER
-usermod -c "${NAME}" $USER
-usermod -aG wheel,storage,power,audio,video $USER
-echo "$USER:$PASSWORD" | chpasswd
-sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-
-# Locale and Time Settings
-echo "Setting up Locale and Timezone..."
-sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
-locale-gen
-echo "LANG=en_US.UTF-8" > /etc/locale.conf
-ln -sf /usr/share/zoneinfo/Asia/Kathmandu /etc/localtime
-hwclock --systohc
-
-# Hostname Configuration
-echo "archlinux" > /etc/hostname
-cat <<EOF > /etc/hosts
-127.0.0.1	localhost
-::1			localhost
-127.0.1.1	archlinux.localdomain	archlinux
-EOF
-
-# Bootloader Installation
-pacman -S grub efibootmgr --noconfirm --needed
-grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Arch Linux"
-grub-mkconfig -o /boot/grub/grub.cfg
-
-# Final messages
-echo "Installation Complete! You can reboot now."
-REALEND
-
-# Run the next.sh script in the chroot environment
-arch-chroot /mnt sh /next.sh
-
-
-echo "--------------------------------------"
-echo "-- INSTALLING Base Arch Linux --"
-echo "--------------------------------------"
-pacstrap /mnt base base-devel linux linux-firmware linux-headers git nano --noconfirm --needed
+pacstrap /mnt base base-devel linux linux-firmware linux-headers git nano snapper snap-pac efibootmgr --noconfirm --needed
 
 # Generate fstab
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -268,7 +220,7 @@ echo "Installing Selected Bootloader..."
 case $BOOTLOADER_CHOICE in
   1)
     # GRUB
-    pacman -S grub efibootmgr --noconfirm --needed
+    pacman -S grub grub-btrfs --noconfirm --needed
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Arch Linux"
     grub-mkconfig -o /boot/grub/grub.cfg
     ;;
@@ -327,15 +279,11 @@ EOF
     ;;
   *)
     echo "Invalid choice. Defaulting to GRUB."
-    pacman -S grub efibootmgr --noconfirm --needed
+    pacman -S grub --noconfirm --needed
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Arch Linux"
     grub-mkconfig -o /boot/grub/grub.cfg
     ;;
 esac
-
-###########################
-sudo pacman -S --noconfirm --needed zsh wget gnome-browser-connector gnome-shell nautilus gnome-terminal gnome-system-monitor gnome-disk-utility gnome-shell gnome-shell-extensions pacman-contrib git ttf-ubuntu-font-family p7zip unrar tar ufw
-#######################
 
 # Audio System Installation
 echo "Installing Selected Audio System..."
@@ -463,72 +411,6 @@ case $DE_CHOICE in
     echo "Invalid choice. No Desktop Environment or Window Manager will be installed."
     ;;
 esac
-
-echo "-------------------------------------------------"
-echo "              Additional Software Installation   "
-echo "-------------------------------------------------"
-
-# Ask the user if they want to install extra packages
-echo "Do you want to install extra packages? (y/n)"
-read answer
-
-# Check if the user responded with "y" or "yes"
-if [[ "$answer" == "y" || "$answer" == "yes" ]]; then
-    echo "Please enter the package names you want to install (separate by space):"
-    read packages
-
-    # Combine predefined and user-provided packages
-    install_packages="zsh wget gnome-browser-connector gnome-shell nautilus gnome-terminal gnome-system-monitor gnome-disk-utility gnome-shell gnome-shell-extensions pacman-contrib git ttf-ubuntu-font-family p7zip unrar tar ufw $packages"
-
-    # Install the packages using pacman
-    echo "Installing packages: $install_packages"
-    sudo pacman -S --noconfirm $install_packages
-
-    # Check if the installation was successful
-    if [[ $? -eq 0 ]]; then
-        echo "Packages installed successfully!"
-    else
-        echo "Error installing packages."
-        exit 1
-    fi
-fi
-
-# Ask the user if they want to enable any services
-echo "Do you want to enable and start any services? (y/n)"
-read enable_services
-
-if [[ "$enable_services" == "y" || "$enable_services" == "yes" ]]; then
-    # List of services to potentially enable
-    services=("ufw" "NetworkManager" "sshd" "bluetooth")
-
-    for service in "${services[@]}"; do
-        # Ask user for each service if they want to enable it
-        echo "Do you want to enable and start $service? (y/n)"
-        read enable
-
-        if [[ "$enable" == "y" || "$enable" == "yes" ]]; then
-            # Enable and start the service using systemctl
-            echo "Enabling and starting $service..."
-            sudo systemctl enable --now $service
-
-            # Check if the service was successfully enabled and started
-            if [[ $? -eq 0 ]]; then
-                echo "$service activated successfully!"
-            else
-                echo "Error activating $service."
-            fi
-        fi
-    done
-fi
-
-# Add your Mount drive section here
-echo "-------------------------------------------------"
-echo "                 Mount Drive                     "
-echo "-------------------------------------------------"
-# Example: Prompt the user for mounting a drive (optional)
-# echo "Do you want to mount a drive? (y/n)"
-# read mount_answer
-# Add your mounting logic here if needed.
 
 
 # Final messages
