@@ -355,8 +355,8 @@ esac
 
 case $NETWORK_MANAGER_CHOICE in
   1)
-    pacman -S wpa_supplicant wireless_tools --noconfirm --needed
-    systemctl enable wpa_supplicant
+    pacman -S networkmanager wpa_supplicant wireless_tools --noconfirm --needed
+    systemctl enable wpa_supplicant NetworkManager
     echo "wpa_supplicant has been installed and enabled."
     ;;
   2)
