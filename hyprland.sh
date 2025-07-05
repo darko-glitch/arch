@@ -13,7 +13,7 @@ sudo pacman -Sy htop pass os-prober firefox --noconfirm --needed
 
 # Change time zone to Berlin
 echo "Changing time zone to Europe/Berlin..."
-timedatectl set-timezone Europe/Berlin
+sudo timedatectl set-timezone Europe/Berlin
 
 # Create and configure the blue light filter script
 echo "Creating blue light filter script..."

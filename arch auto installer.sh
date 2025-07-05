@@ -84,7 +84,7 @@ mount "$EFI" /mnt/boot
 echo "--------------------------------------"
 echo "-- INSTALLING Base Arch Linux --"
 echo "--------------------------------------"
-pacstrap /mnt base base-devel linux linux-firmware linux-headers git nano snapper snap-pac efibootmgr --noconfirm --needed
+pacstrap /mnt base base-devel linux linux-firmware linux-headers git nano efibootmgr
 
 # Generate fstab
 genfstab -U /mnt >> /mnt/etc/fstab
