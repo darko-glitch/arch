@@ -35,13 +35,24 @@ echo "Please choose Your Desktop Environment"
 echo "1. GNOME"
 echo "2. KDE"
 echo "3. XFCE"
-echo "4. NoDesktop"
+echo "4. Hyprland"
 read DESKTOP
 
 echo "Please choose Your Bootloader"
 echo "1. systemd-boot"
 echo "2. EFISTUB with efibootmgr"
 read BOOTLOADER
+
+echo "-------------------------------------------------"
+echo "                Display Manager                  "
+echo "-------------------------------------------------"
+echo "Select a display manager to install:"
+echo "1) SDDM"
+echo "2) GDM"
+echo "3) LY"
+echo "4) LightDM"
+echo "5) LightDM with Slick Greeter"
+read -p "Enter the number of your choice: " DM_CHOICE
 
 echo ""
 echo "WARNING: This will erase all data on the following partitions:"
@@ -64,8 +75,8 @@ unset LUKS_PASSWORD_ROOT
 
 # make filesystems
 echo -e "\nCreating Filesystems...\n"
-mkfs.vfat -F32 -n "EFISYSTEM" "${EFI}"
-mkfs.btrfs -L "ROOT" /dev/mapper/cryptroot
+mkfs.vfat -F32 -n "BOOT" -f "${EFI}"
+mkfs.btrfs -f -L "Arch Linux" /dev/mapper/cryptroot
 
 # mount target and create subvolumes for root
 mount -t btrfs /dev/mapper/cryptroot /mnt
@@ -176,25 +187,66 @@ ZRAM
 echo "----------------------------------------"
 echo "Display and Audio Drivers"
 echo "----------------------------------------"
-pacman -S xorg pulseaudio hyprland kitty --noconfirm --needed
+pacman -S xorg pulseaudio --noconfirm --needed
+
 systemctl enable NetworkManager bluetooth
 
 # DESKTOP ENVIRONMENT
 if [[ $DESKTOP == '1' ]]
 then
-    pacman -S gnome gdm --noconfirm --needed
-    systemctl enable gdm
+    echo "Installing GNOME..."
+    pacman -S gnome --noconfirm --needed
 elif [[ $DESKTOP == '2' ]]
 then
-    pacman -S plasma sddm kde-applications --noconfirm --needed
-    systemctl enable sddm
+    echo "Installing KDE Plasma..."
+    pacman -S plasma kde-applications --noconfirm --needed
 elif [[ $DESKTOP == '3' ]]
 then
-    pacman -S xfce4 xfce4-goodies lightdm lightdm-gtk-greeter --noconfirm --needed
-    systemctl enable lightdm
+    echo "Installing XFCE..."
+    pacman -S xfce4 xfce4-goodies --noconfirm --needed
+elif [[ $DESKTOP == '4' ]]
+then
+    echo "Installing Hyprland..."
+    pacman -S hyprland dunst kitty uwsm dolphin wofi xdg-desktop-portal-hyprland qt5-wayland qt6-wayland polkit-kde-agent grim slurp --noconfirm --needed
 else
-    echo "You have chosen to Install Desktop Yourself"
+    echo "No desktop environment selected"
 fi
+
+echo "-------------------------------------------------"
+echo "           Display Manager Installation          "
+echo "-------------------------------------------------"
+# Install and enable selected display manager
+case $DM_CHOICE in
+    1)
+        echo "Installing SDDM..."
+        pacman -S sddm --noconfirm --needed
+        systemctl enable sddm
+        ;;
+    2)
+        echo "Installing GDM..."
+        pacman -S gdm --noconfirm --needed
+        systemctl enable gdm
+        ;;
+    3)
+        echo "Installing LY..."
+        pacman -S ly --noconfirm --needed
+        systemctl enable ly
+        ;;
+    4)
+        echo "Installing LightDM..."
+        pacman -S lightdm lightdm-gtk-greeter --noconfirm --needed
+        systemctl enable lightdm
+        ;;
+    5)
+        echo "Installing LightDM with Slick Greeter..."
+        pacman -S lightdm lightdm-slick-greeter --noconfirm --needed
+        sed -i 's/^#greeter-session=.*/greeter-session=lightdm-slick-greeter/' /etc/lightdm/lightdm.conf
+        systemctl enable lightdm
+        ;;
+    *)
+        echo "Invalid choice. No display manager installed."
+        ;;
+esac
 
 echo "----------------------------------------"
 echo "Install Complete, You can reboot now"
